@@ -1,21 +1,20 @@
+// lib/resend.ts
 import { Resend } from "resend";
-
-// ensure environment variables are loaded (Next.js should handle this automatically)
-if (!process.env.RESEND_API_KEY) {
-    try {
-        // fallback for local development when Next might not auto-load
-        require("dotenv").config();
-    } catch (e) {
-        // ignore if dotenv isn't installed or fails
-    }
-}
-
-console.log("[lib/resend] RESEND_API_KEY=", process.env.RESEND_API_KEY);
 
 const key = process.env.RESEND_API_KEY;
 
+// ✅ No lanzamos error en tiempo de build.
+// Solo avisamos por consola si falta la key.
 if (!key) {
-    throw new Error("RESEND_API_KEY no está definida.");
+  console.warn(
+    "[lib/resend] RESEND_API_KEY no está definida. El envío de correos está deshabilitado."
+  );
 }
 
-export const resend = new Resend(key);
+// Puede ser `null` si no hay API key
+export const resend = key ? new Resend(key) : null;
+
+// Helper para que las rutas puedan chequear configuración
+export function isResendConfigured() {
+  return Boolean(key);
+}
