@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { resend } from "@/lib/resend";
+import { resend, isResendConfigured } from "@/lib/resend";
 import { ContactSchema } from "@/lib/validators";
 
 export async function POST(req: Request) {
@@ -9,7 +9,11 @@ export async function POST(req: Request) {
 
         if (!parsed.success) {
             return NextResponse.json(
-                { ok: false, error: "Datos inválidos", details: parsed.error.flatten() },
+                {
+                    ok: false,
+                    error: "Datos inválidos",
+                    details: parsed.error.flatten(),
+                },
                 { status: 400 }
             );
         }
@@ -21,16 +25,36 @@ export async function POST(req: Request) {
         // from must be a verified sender in Resend (or a domain you control).
 
         // log presence but never print the actual key
-        console.log("[contact] env vars", { hasKey, to: !!to, from: !!from });
+        console.log("[contact] env vars", {
+            hasKey,
+            to: !!to,
+            from: !!from,
+        });
 
         if (!hasKey) {
             console.error("[contact] falta RESEND_API_KEY");
+            // ⚠️ No rompemos el servidor, solo lo registramos.
         }
 
         if (!to || !from) {
             console.error("[contact] missing to/from email", { to, from });
             return NextResponse.json(
                 { ok: false, error: "Faltan variables de entorno (TO/FROM)." },
+                { status: 500 }
+            );
+        }
+
+        // ✅ Chequeo final antes de enviar correos
+        if (!isResendConfigured() || !resend) {
+            console.error(
+                "[contact] Resend no está configurado correctamente (falta RESEND_API_KEY)"
+            );
+            return NextResponse.json(
+                {
+                    ok: false,
+                    error:
+                        "El servicio de correo no está disponible en este momento. Intenta nuevamente más tarde.",
+                },
                 { status: 500 }
             );
         }
@@ -45,8 +69,12 @@ export async function POST(req: Request) {
       <p><b>Comuna:</b> ${escapeHtml(d.comuna)}</p>
       <p><b>Email:</b> ${escapeHtml(d.email)}</p>
       <p><b>Teléfono:</b> ${escapeHtml(d.telefono)}</p>
-      <p><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")}</p>
-      <p><b>Motivo:</b><br/>${escapeHtml(d.motivo).replace(/\n/g, "<br/>")}</p>
+      <p><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")
+            }</p>
+      <p><b>Motivo:</b><br/>${escapeHtml(d.motivo).replace(
+                /\n/g,
+                "<br/>"
+            )}</p>
       <hr/>
       <small>Enviado desde el formulario web.</small>
     `;
@@ -64,7 +92,10 @@ export async function POST(req: Request) {
         } catch (e: any) {
             console.error("[contact] admin send error", e);
             return NextResponse.json(
-                { ok: false, error: e?.message || "Error al enviar correo admin" },
+                {
+                    ok: false,
+                    error: e?.message || "Error al enviar correo admin",
+                },
                 { status: 500 }
             );
         }
@@ -77,9 +108,13 @@ export async function POST(req: Request) {
       <p><b>Resumen:</b></p>
       <ul>
         <li><b>Comuna:</b> ${escapeHtml(d.comuna)}</li>
-        <li><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")}</li>
+        <li><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")
+            }</li>
       </ul>
-      <p><b>Tu mensaje:</b><br/>${escapeHtml(d.motivo).replace(/\n/g, "<br/>")}</p>
+      <p><b>Tu mensaje:</b><br/>${escapeHtml(d.motivo).replace(
+                /\n/g,
+                "<br/>"
+            )}</p>
       <br/>
       <p>Saludos,<br/>Catalina Farías</p>
     `;
@@ -96,7 +131,10 @@ export async function POST(req: Request) {
             console.error("[contact] client send error", e);
             // no necesitamos abortar la petición, simplemente avisamos al frontend
             return NextResponse.json(
-                { ok: false, error: e?.message || "Error al enviar correo al cliente" },
+                {
+                    ok: false,
+                    error: e?.message || "Error al enviar correo al cliente",
+                },
                 { status: 500 }
             );
         }
@@ -105,7 +143,12 @@ export async function POST(req: Request) {
     } catch (err: any) {
         console.error("[contact] unexpected error", err);
         return NextResponse.json(
-            { ok: false, error: err?.message || "No se pudo enviar. Intenta nuevamente en unos minutos." },
+            {
+                ok: false,
+                error:
+                    err?.message ||
+                    "No se pudo enviar. Intenta nuevamente en unos minutos.",
+            },
             { status: 500 }
         );
     }
