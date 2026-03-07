@@ -21,13 +21,16 @@ export async function POST(req: Request) {
         // Presence logs only: never print API keys.
         const hasApiKey = Boolean(process.env.RESEND_API_KEY?.trim());
         const to = process.env.CONTACT_TO_EMAIL || "c.farias1005@gmail.com";
-        const from = "Matrona en Casa <onboarding@resend.dev>";
+        const from =
+            process.env.CONTACT_FROM_EMAIL ||
+            "Matrona en Casa <onboarding@resend.dev>";
 
         console.log("[contact] env vars", {
             hasApiKey,
             hasContactToEmail: Boolean(process.env.CONTACT_TO_EMAIL),
             usingDefaultContactToEmail: !process.env.CONTACT_TO_EMAIL,
-            fixedSender: from,
+            hasContactFromEmail: Boolean(process.env.CONTACT_FROM_EMAIL),
+            usingDefaultContactFromEmail: !process.env.CONTACT_FROM_EMAIL,
         });
 
         if (!hasApiKey) {
@@ -113,56 +116,19 @@ export async function POST(req: Request) {
             );
         }
 
-        // 2) Confirmacion al paciente
-        const clientSubject = "Recibimos tu solicitud";
-        const clientHtml = `
-      <p>Hola <b>${escapeHtml(d.nombre)}</b>,</p>
-      <p>Gracias por contactarte. Recibimos tu solicitud y te contactaremos a la brevedad.</p>
-      <p><b>Resumen:</b></p>
-      <ul>
-        <li><b>Comuna:</b> ${escapeHtml(d.comuna)}</li>
-        <li><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "-")}</li>
-      </ul>
-      <p><b>Tu mensaje:</b><br/>${escapeHtml(d.motivo).replace(/\n/g, "<br/>")}</p>
-      <br/>
-      <p>Saludos,<br/>Matrona en Casa</p>
-    `;
+        // 2) Confirmacion al paciente desactivada temporalmente para modo testing de Resend.
+        console.log("[contact] client confirmation email skipped in testing mode", {
+            clientEmail: d.email,
+        });
 
-        let clientResult: Awaited<ReturnType<typeof resend.emails.send>>;
-        try {
-            clientResult = await resend.emails.send({
-                from,
-                to: d.email,
-                subject: clientSubject,
-                html: clientHtml,
-            });
-
-            console.log("[contact] client send result", clientResult);
-        } catch (error: unknown) {
-            console.error("[contact] client send exception", error);
-
-            return NextResponse.json(
-                {
-                    ok: false,
-                    error: `Error al enviar confirmacion al paciente: ${extractErrorMessage(error)}`,
-                },
-                { status: 500 }
-            );
-        }
-
-        if (clientResult.error) {
-            console.error("[contact] client send error", clientResult.error);
-
-            return NextResponse.json(
-                {
-                    ok: false,
-                    error: `Resend rechazo el correo al paciente: ${extractErrorMessage(clientResult.error)}`,
-                },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json({ ok: true }, { status: 200 });
+        return NextResponse.json(
+            {
+                ok: true,
+                message:
+                    "Solicitud enviada al correo admin. Confirmacion al cliente desactivada temporalmente.",
+            },
+            { status: 200 }
+        );
     } catch (error: unknown) {
         console.error("[contact] unexpected error", error);
 
