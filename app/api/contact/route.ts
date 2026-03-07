@@ -20,23 +20,22 @@ export async function POST(req: Request) {
 
         // Presence logs only: never print API keys.
         const hasApiKey = Boolean(process.env.RESEND_API_KEY?.trim());
-        const contactToEmail = process.env.CONTACT_TO_EMAIL?.trim();
-        const contactFromEmail = process.env.CONTACT_FROM_EMAIL?.trim();
-        // Recomendado para pruebas: "Matrona en Casa <onboarding@resend.dev>"
+        const toEmail =
+            process.env.CONTACT_TO_EMAIL?.trim() || "c.farias1005@gmail.com";
+        const fromEmail =
+            process.env.CONTACT_FROM_EMAIL?.trim() ||
+            "Matrona en Casa <onboarding@resend.dev>";
 
         console.log("[contact] env vars", {
             hasApiKey,
-            hasContactToEmail: Boolean(contactToEmail),
-            hasContactFromEmail: Boolean(contactFromEmail),
+            hasContactToEmail: Boolean(process.env.CONTACT_TO_EMAIL?.trim()),
+            hasContactFromEmail: Boolean(process.env.CONTACT_FROM_EMAIL?.trim()),
+            usingDefaultContactToEmail: !process.env.CONTACT_TO_EMAIL?.trim(),
+            usingDefaultContactFromEmail: !process.env.CONTACT_FROM_EMAIL?.trim(),
         });
 
-        const missingEnv: string[] = [];
-        if (!hasApiKey) missingEnv.push("RESEND_API_KEY");
-        if (!contactToEmail) missingEnv.push("CONTACT_TO_EMAIL");
-        if (!contactFromEmail) missingEnv.push("CONTACT_FROM_EMAIL");
-
-        if (missingEnv.length > 0) {
-            const message = `Faltan variables de entorno requeridas: ${missingEnv.join(", ")}`;
+        if (!hasApiKey) {
+            const message = "Falta RESEND_API_KEY en variables de entorno.";
             console.error("[contact] " + message);
 
             return NextResponse.json(
@@ -67,8 +66,6 @@ export async function POST(req: Request) {
             );
         }
 
-        const toEmail = contactToEmail as string;
-        const fromEmail = contactFromEmail as string;
         const d = parsed.data;
 
         // 1) Correo admin
