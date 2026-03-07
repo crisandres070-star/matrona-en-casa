@@ -1,12 +1,6 @@
 import { NextResponse } from "next/server";
-<<<<<<< HEAD
 import { getResendClient, isResendConfigured } from "@/lib/resend";
-=======
-import { resend, isResendConfigured } from "@/lib/resend";
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
 import { ContactSchema } from "@/lib/validators";
-
-const ADMIN_EMAIL = "c.farias1005@gmail.com";
 
 export async function POST(req: Request) {
     try {
@@ -17,7 +11,7 @@ export async function POST(req: Request) {
             return NextResponse.json(
                 {
                     ok: false,
-                    error: "Datos inválidos",
+                    error: "Datos invalidos",
                     details: parsed.error.flatten(),
                 },
                 { status: 400 }
@@ -25,61 +19,40 @@ export async function POST(req: Request) {
         }
 
         // Presence logs only: never print API keys.
-        const hasKey = Boolean(process.env.RESEND_API_KEY?.trim());
-        const configuredTo = process.env.CONTACT_TO_EMAIL?.trim();
-        const from = process.env.CONTACT_FROM_EMAIL?.trim();
+        const hasApiKey = Boolean(process.env.RESEND_API_KEY?.trim());
+        const contactToEmail = process.env.CONTACT_TO_EMAIL?.trim();
+        const contactFromEmail = process.env.CONTACT_FROM_EMAIL?.trim();
         // Recomendado para pruebas: "Matrona en Casa <onboarding@resend.dev>"
 
-<<<<<<< HEAD
         console.log("[contact] env vars", {
-            hasKey,
-            hasContactToEmail: !!configuredTo,
-            hasContactFromEmail: !!from,
+            hasApiKey,
+            hasContactToEmail: Boolean(contactToEmail),
+            hasContactFromEmail: Boolean(contactFromEmail),
         });
 
         const missingEnv: string[] = [];
-        if (!hasKey) missingEnv.push("RESEND_API_KEY");
-        if (!configuredTo) missingEnv.push("CONTACT_TO_EMAIL");
-        if (!from) missingEnv.push("CONTACT_FROM_EMAIL");
-=======
-        // log presence but never print the actual key
-        console.log("[contact] env vars", {
-            hasKey,
-            to: !!to,
-            from: !!from,
-        });
-
-        if (!hasKey) {
-            console.error("[contact] falta RESEND_API_KEY");
-            // ⚠️ No rompemos el servidor, solo lo registramos.
-        }
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
+        if (!hasApiKey) missingEnv.push("RESEND_API_KEY");
+        if (!contactToEmail) missingEnv.push("CONTACT_TO_EMAIL");
+        if (!contactFromEmail) missingEnv.push("CONTACT_FROM_EMAIL");
 
         if (missingEnv.length > 0) {
             const message = `Faltan variables de entorno requeridas: ${missingEnv.join(", ")}`;
             console.error("[contact] " + message);
+
             return NextResponse.json(
                 { ok: false, error: message },
                 { status: 500 }
             );
         }
 
-<<<<<<< HEAD
-        // This endpoint is configured to always notify the personal inbox.
-        if (configuredTo !== ADMIN_EMAIL) {
-            console.warn(
-                "[contact] CONTACT_TO_EMAIL no coincide con el correo admin esperado",
-                {
-                    configuredTo,
-                    expected: ADMIN_EMAIL,
-                }
-            );
-        }
-
         if (!isResendConfigured()) {
             const message = "RESEND_API_KEY no esta configurada para el envio de correos.";
             console.error("[contact] " + message);
-            return NextResponse.json({ ok: false, error: message }, { status: 500 });
+
+            return NextResponse.json(
+                { ok: false, error: message },
+                { status: 500 }
+            );
         }
 
         const resend = getResendClient();
@@ -87,44 +60,27 @@ export async function POST(req: Request) {
         if (!resend) {
             const message = "No se pudo inicializar el cliente de correo.";
             console.error("[contact] " + message);
-            return NextResponse.json({ ok: false, error: message }, { status: 500 });
-        }
 
-        const fromEmail = from as string;
-
-=======
-        // ✅ Chequeo final antes de enviar correos
-        if (!isResendConfigured() || !resend) {
-            console.error(
-                "[contact] Resend no está configurado correctamente (falta RESEND_API_KEY)"
-            );
             return NextResponse.json(
-                {
-                    ok: false,
-                    error:
-                        "El servicio de correo no está disponible en este momento. Intenta nuevamente más tarde.",
-                },
+                { ok: false, error: message },
                 { status: 500 }
             );
         }
 
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
+        const toEmail = contactToEmail as string;
+        const fromEmail = contactFromEmail as string;
         const d = parsed.data;
 
-        // 1) Correo a Catalina (admin)
+        // 1) Correo admin
         const adminSubject = `Nueva solicitud - ${d.nombre} (${d.comuna})`;
         const adminHtml = `
       <h2>Nueva solicitud</h2>
       <p><b>Nombre:</b> ${escapeHtml(d.nombre)}</p>
       <p><b>Comuna:</b> ${escapeHtml(d.comuna)}</p>
       <p><b>Email:</b> ${escapeHtml(d.email)}</p>
-      <p><b>Teléfono:</b> ${escapeHtml(d.telefono)}</p>
-      <p><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")
-            }</p>
-      <p><b>Motivo:</b><br/>${escapeHtml(d.motivo).replace(
-                /\n/g,
-                "<br/>"
-            )}</p>
+      <p><b>Telefono:</b> ${escapeHtml(d.telefono)}</p>
+      <p><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "-")}</p>
+      <p><b>Motivo:</b><br/>${escapeHtml(d.motivo).replace(/\n/g, "<br/>")}</p>
       <hr/>
       <small>Enviado desde el formulario web.</small>
     `;
@@ -133,18 +89,19 @@ export async function POST(req: Request) {
         try {
             adminResult = await resend.emails.send({
                 from: fromEmail,
-                to: ADMIN_EMAIL,
+                to: toEmail,
                 subject: adminSubject,
-                replyTo: d.email, // para que Catalina responda directo al paciente
+                replyTo: d.email,
                 html: adminHtml,
             });
+
             console.log("[contact] admin send result", adminResult);
         } catch (error: unknown) {
             console.error("[contact] admin send exception", error);
+
             return NextResponse.json(
                 {
                     ok: false,
-<<<<<<< HEAD
                     error: `Error al enviar correo admin: ${extractErrorMessage(error)}`,
                 },
                 { status: 500 }
@@ -153,35 +110,29 @@ export async function POST(req: Request) {
 
         if (adminResult.error) {
             console.error("[contact] admin send error", adminResult.error);
+
             return NextResponse.json(
                 {
                     ok: false,
                     error: `Resend rechazo el correo admin: ${extractErrorMessage(adminResult.error)}`,
-=======
-                    error: e?.message || "Error al enviar correo admin",
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
                 },
                 { status: 500 }
             );
         }
 
-        // 2) Confirmación al paciente
-        const clientSubject = `Recibimos tu solicitud ✅`;
+        // 2) Confirmacion al paciente
+        const clientSubject = "Recibimos tu solicitud";
         const clientHtml = `
       <p>Hola <b>${escapeHtml(d.nombre)}</b>,</p>
       <p>Gracias por contactarte. Recibimos tu solicitud y te contactaremos a la brevedad.</p>
       <p><b>Resumen:</b></p>
       <ul>
         <li><b>Comuna:</b> ${escapeHtml(d.comuna)}</li>
-        <li><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "—")
-            }</li>
+        <li><b>Fecha preferida:</b> ${escapeHtml(d.fechaPreferida || "-")}</li>
       </ul>
-      <p><b>Tu mensaje:</b><br/>${escapeHtml(d.motivo).replace(
-                /\n/g,
-                "<br/>"
-            )}</p>
+      <p><b>Tu mensaje:</b><br/>${escapeHtml(d.motivo).replace(/\n/g, "<br/>")}</p>
       <br/>
-      <p>Saludos,<br/>Catalina Farías</p>
+      <p>Saludos,<br/>Matrona en Casa</p>
     `;
 
         let clientResult: Awaited<ReturnType<typeof resend.emails.send>>;
@@ -192,13 +143,14 @@ export async function POST(req: Request) {
                 subject: clientSubject,
                 html: clientHtml,
             });
+
             console.log("[contact] client send result", clientResult);
         } catch (error: unknown) {
             console.error("[contact] client send exception", error);
+
             return NextResponse.json(
                 {
                     ok: false,
-<<<<<<< HEAD
                     error: `Error al enviar confirmacion al paciente: ${extractErrorMessage(error)}`,
                 },
                 { status: 500 }
@@ -207,31 +159,24 @@ export async function POST(req: Request) {
 
         if (clientResult.error) {
             console.error("[contact] client send error", clientResult.error);
+
             return NextResponse.json(
                 {
                     ok: false,
                     error: `Resend rechazo el correo al paciente: ${extractErrorMessage(clientResult.error)}`,
-=======
-                    error: e?.message || "Error al enviar correo al cliente",
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
                 },
                 { status: 500 }
             );
         }
 
         return NextResponse.json({ ok: true }, { status: 200 });
-    } catch (err: unknown) {
-        console.error("[contact] unexpected error", err);
+    } catch (error: unknown) {
+        console.error("[contact] unexpected error", error);
+
         return NextResponse.json(
             {
                 ok: false,
-<<<<<<< HEAD
-                error: extractErrorMessage(err),
-=======
-                error:
-                    err?.message ||
-                    "No se pudo enviar. Intenta nuevamente en unos minutos.",
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
+                error: extractErrorMessage(error),
             },
             { status: 500 }
         );
@@ -246,7 +191,6 @@ function escapeHtml(input: string) {
         .replaceAll('"', "&quot;")
         .replaceAll("'", "&#039;");
 }
-<<<<<<< HEAD
 
 function extractErrorMessage(input: unknown) {
     if (input instanceof Error) {
@@ -268,5 +212,3 @@ function extractErrorMessage(input: unknown) {
 
     return "No se pudo enviar. Intenta nuevamente en unos minutos.";
 }
-=======
->>>>>>> d82eb10ad38b5890b6ab90ddd4e4983062602863
