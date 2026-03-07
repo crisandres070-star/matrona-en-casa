@@ -20,18 +20,14 @@ export async function POST(req: Request) {
 
         // Presence logs only: never print API keys.
         const hasApiKey = Boolean(process.env.RESEND_API_KEY?.trim());
-        const toEmail =
-            process.env.CONTACT_TO_EMAIL?.trim() || "c.farias1005@gmail.com";
-        const fromEmail =
-            process.env.CONTACT_FROM_EMAIL?.trim() ||
-            "Matrona en Casa <onboarding@resend.dev>";
+        const to = process.env.CONTACT_TO_EMAIL || "c.farias1005@gmail.com";
+        const from = "Matrona en Casa <onboarding@resend.dev>";
 
         console.log("[contact] env vars", {
             hasApiKey,
-            hasContactToEmail: Boolean(process.env.CONTACT_TO_EMAIL?.trim()),
-            hasContactFromEmail: Boolean(process.env.CONTACT_FROM_EMAIL?.trim()),
-            usingDefaultContactToEmail: !process.env.CONTACT_TO_EMAIL?.trim(),
-            usingDefaultContactFromEmail: !process.env.CONTACT_FROM_EMAIL?.trim(),
+            hasContactToEmail: Boolean(process.env.CONTACT_TO_EMAIL),
+            usingDefaultContactToEmail: !process.env.CONTACT_TO_EMAIL,
+            fixedSender: from,
         });
 
         if (!hasApiKey) {
@@ -85,8 +81,8 @@ export async function POST(req: Request) {
         let adminResult: Awaited<ReturnType<typeof resend.emails.send>>;
         try {
             adminResult = await resend.emails.send({
-                from: fromEmail,
-                to: toEmail,
+                from,
+                to,
                 subject: adminSubject,
                 replyTo: d.email,
                 html: adminHtml,
@@ -135,7 +131,7 @@ export async function POST(req: Request) {
         let clientResult: Awaited<ReturnType<typeof resend.emails.send>>;
         try {
             clientResult = await resend.emails.send({
-                from: fromEmail,
+                from,
                 to: d.email,
                 subject: clientSubject,
                 html: clientHtml,
