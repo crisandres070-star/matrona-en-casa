@@ -20,17 +20,13 @@ export async function POST(req: Request) {
 
         // Presence logs only: never print API keys.
         const hasApiKey = Boolean(process.env.RESEND_API_KEY?.trim());
-        const to = process.env.CONTACT_TO_EMAIL || "c.farias1005@gmail.com";
-        const from =
-            process.env.CONTACT_FROM_EMAIL ||
-            "Matrona en Casa <onboarding@resend.dev>";
+        const to = "c.farias1005@gmail.com";
+        const from = "Matrona en Casa <onboarding@resend.dev>";
 
         console.log("[contact] env vars", {
             hasApiKey,
-            hasContactToEmail: Boolean(process.env.CONTACT_TO_EMAIL),
-            usingDefaultContactToEmail: !process.env.CONTACT_TO_EMAIL,
-            hasContactFromEmail: Boolean(process.env.CONTACT_FROM_EMAIL),
-            usingDefaultContactFromEmail: !process.env.CONTACT_FROM_EMAIL,
+            fixedAdminTo: to,
+            fixedFrom: from,
         });
 
         if (!hasApiKey) {
@@ -66,6 +62,12 @@ export async function POST(req: Request) {
         }
 
         const d = parsed.data;
+
+        console.log("[contact] email routing", {
+            from,
+            to,
+            replyTo: d.email,
+        });
 
         // 1) Correo admin
         const adminSubject = `Nueva solicitud - ${d.nombre} (${d.comuna})`;
